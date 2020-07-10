@@ -1,0 +1,22 @@
+#include <iostream>
+
+using namespace std;
+
+typedef struct typetable{  //类型表
+    char TVAL;   //类型，i(int),f(float),c(char)
+    //struct * ArrayTable；//如果是数组，指向数组表，否则为空
+}TypeTable;
+
+
+typedef struct maintable{  //总表
+    string name[20];  //名字，标识符源码
+    struct typetable * type[20];  //标识符种类为变量时表示数据类型，指向类型表，否则为空
+    string cat[20]; //标识符种类
+    int addr; //表示变量的地址
+    struct maintable * next;  //当前表满的时候指向下一个总表
+    int num;  //记录数据个数
+    int addr_num;
+}MainTable;
+
+
+
