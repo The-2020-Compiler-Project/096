@@ -1,0 +1,421 @@
+#include <iostream>
+#include <fstream>
+#include <set>
+#include <stack>
+#include <queue>
+#include <string.h>
+using namespace std;
+set <char> T;             //终结符集
+set <char> N;             //非终结符集
+set <char> first[1024];    //first集
+set <char> follow[1024];   //follow集
+set <char> process[1024];  //中间过程集
+set <char> select[1024];   //select集
+stack <char> sta;          //分析栈
+queue <char> que;          //输入串
+
+int line;
+int length[1024];          //每行长度
+char grammar[1024][1024];    //文法
+int T_flag[1024];          //每行是否有终结符
+int null_flag[1024];      //是否推空标志
+int nullselect[1024];     //集合是否推空标志
+
+string table[1024][1024];
+void _null();
+void read_grammar_from_file();
+void set_first();
+void set_follow();
+void set_select();
+void set_table();
+void show_first();
+void show_follow();
+void show_select();
+void grammatical_analysis(string);
+//im(){ib=n;b=n;}
+//im(){ib=n,b=b+n,b=n+n;b=b+b;b=b+b*(b-b);b=n;}
+int main()
+{
+	string s;
+	cout << "输入" << endl;
+	cin >> s;
+	grammatical_analysis(s);
+	return 0;
+}
+int if_N(char ch)//是否为非终结符
+{
+	if (ch >= 'A'&&ch <= 'Z')
+		return 1;
+	return 0;
+}
+int if_T(char ch)//是否为终结符
+{
+	if (!if_N(ch)&&ch!='~'&&ch != '>')
+		return 1;
+	return 0;
+}
+int if_empty()
+{
+	for (set<char>::iterator ite = N.begin(); ite != N.end(); ite++)
+		if (!process[int(*ite)].empty())
+			return 0;
+	return 1;
+}
+void read_grammar_from_file()
+{
+	fstream infile("grammar.txt", ios::in);
+	while (infile.getline(grammar[line], sizeof(grammar[line])))
+	{
+		for (int i = 0;; i++)
+		{
+			if (int(grammar[line][i]) == 0)
+			{
+				length[line] = i;
+				break;
+			}
+			if (if_T(grammar[line][i]))
+			{
+				T_flag[line] = 1;
+				T.insert(grammar[line][i]);
+			}
+			if (if_N(grammar[line][i]))
+				N.insert(grammar[line][i]);
+		}
+		if (if_T(grammar[line][3]))
+		{
+			if (grammar[line][3] == '^')
+			{
+				null_flag[int(grammar[line][0])] = 1;
+			}
+			first[int(grammar[line][0])].insert(grammar[line][3]);
+		}
+		else
+		{
+			process[int(grammar[line][0])].insert(grammar[line][3]);
+		}
+		line++;
+	}
+}
+int sum()//求和，用于是否完成空字符判断
+{
+	int i = 0;
+	for (set<char>::iterator ite = N.begin(); ite != N.end(); ite++)
+	{
+		i += null_flag[int(*ite)];
+	}
+	return i;
+}
+void _null()//判断是否能推空非终结符
+{
+	int cha = 999;
+	int yuan = sum();
+	while (cha != 0)
+	{
+		//0代表不能推出空，1代表可以
+		for (int i = 0; i < line; i++)
+		{
+			if (T_flag[i] == 0)
+			{
+				int t = 1;
+				for (int j = 3; j < length[i]; j++)
+				{
+					t = t && null_flag[int(grammar[i][j])];
+				}
+				null_flag[int(grammar[i][0])] = t;
+			}
+		}
+		cha = yuan - sum();
+		yuan = sum();
+	}
+}
+void _null2()//判断select集合时，右侧是否可以推空
+{
+	for (int i = 0; i < line; i++)
+	{
+		for (set<char>::iterator ite2 = select[i].begin(); ite2 != select[i].end(); ite2++)
+		{
+			if (*ite2 == '^')
+			{
+				nullselect[i] = 1;
+				break;
+			}
+		}
+	}
+}
+void set_first()
+{
+	for (int i = 0; i < line; i++)
+	{
+		if (if_N(grammar[i][3]))
+		{
+			int j = 3;
+			while (null_flag[int(grammar[i][j])] == 1)
+			{
+				if (j + 1 == length[i])
+					break;
+				if (if_N(grammar[i][j + 1]))
+				{
+					process[int(grammar[i][0])].insert(grammar[i][j + 1]);
+					j++;
+				}
+			}
+		}
+	}
+	while (!if_empty())
+		for (set<char>::iterator ite1 = N.begin(); ite1 != N.end(); ite1++)
+			if (process[int(*ite1)].empty())
+				for (set<char>::iterator ite3 = N.begin(); ite3 != N.end(); ite3++)
+					for (set<char>::iterator ite4 = process[int(*ite3)].begin(); ite4 != process[int(*ite3)].end(); ite4++)
+						if (*ite4 == *ite1)
+						{
+							process[int(*ite3)].erase(*ite4);
+							for (set<char>::iterator ite5 = first[int(*ite1)].begin(); ite5 != first[int(*ite1)].end(); ite5++)
+								first[int(*ite3)].insert(*ite5);
+							break;
+						}
+}
+void set_follow()
+{
+	follow[int(grammar[0][0])].insert('#');
+	for (int i = 0; i < line; i++)
+	{
+		int j = 3;
+		while (j != length[i])
+		{
+			if (if_N(grammar[i][j]))
+			{
+				if (j == length[i] - 1)
+				{
+					if (grammar[i][0] != grammar[i][j])
+						process[int(grammar[i][j])].insert(grammar[i][0]);
+				}
+				else if (if_N(grammar[i][j + 1]) && null_flag[int(grammar[i][j + 1])] == 1)
+				{
+					if (grammar[i][0] != grammar[i][j])
+						process[int(grammar[i][j])].insert(grammar[i][0]);
+					for (set<char>::iterator ite2 = first[int(grammar[i][j + 1])].begin(); ite2 != first[int(grammar[i][j + 1])].end(); ite2++)
+					{
+						if (*ite2 != '^')
+							follow[int(grammar[i][j])].insert(*ite2);
+					}
+				}
+				else if (if_N(grammar[i][j + 1]) && null_flag[int(grammar[i][j + 1])] == 0)
+				{
+					for (set<char>::iterator ite2 = first[int(grammar[i][j + 1])].begin(); ite2 != first[int(grammar[i][j + 1])].end(); ite2++)
+					{
+						if (*ite2 != '^')
+							follow[int(grammar[i][j])].insert(*ite2);
+					}
+				}
+				else if (if_T(grammar[i][j + 1]))
+				{
+					follow[int(grammar[i][j])].insert(grammar[i][j + 1]);
+				}
+				else {}
+			}
+			j++;
+		}
+	}
+	while (!if_empty())
+		for (set<char>::iterator ite1 = N.begin(); ite1 != N.end(); ite1++)
+			if (process[int(*ite1)].empty())
+				for (set<char>::iterator ite3 = N.begin(); ite3 != N.end(); ite3++)
+					for (set<char>::iterator ite4 = process[int(*ite3)].begin(); ite4 != process[int(*ite3)].end(); ite4++)
+						if (*ite4 == *ite1)
+						{
+							process[int(*ite3)].erase(*ite4);
+							for (set<char>::iterator ite5 = follow[int(*ite1)].begin(); ite5 != follow[int(*ite1)].end(); ite5++)
+								follow[int(*ite3)].insert(*ite5);
+							break;
+						}
+}
+void set_select()
+{
+	for (int i = 0; i < line; i++)
+	{
+		int j = 3;
+		if (if_N(grammar[i][3]))
+			for (set<char>::iterator ite2 = first[grammar[i][3]].begin(); ite2 != first[grammar[i][3]].end(); ite2++)
+				if (*ite2 != '^')
+					select[i].insert(*ite2);
+		while (if_N(grammar[i][j]) && null_flag[int(grammar[i][j])] == 1)
+		{
+			if (j == length[i] - 1)
+				break;
+			for (set<char>::iterator ite2 = first[grammar[i][j + 1]].begin(); ite2 != first[grammar[i][j + 1]].end(); ite2++)
+				if (*ite2 != '^')
+					select[i].insert(*ite2);
+			j++;
+		}
+		if (if_T(grammar[i][j]))
+			select[i].insert(grammar[i][j]);
+	}
+
+	_null2();
+	for (int i = 0; i < line; i++)
+	{
+		if (nullselect[i] == 1)
+		{
+			select[i].erase('^');
+			for (set<char>::iterator ite5 = follow[int(grammar[i][0])].begin(); ite5 != follow[int(grammar[i][0])].end(); ite5++)
+				select[i].insert(*ite5);
+		}
+	}
+}
+void set_table()
+{
+	for (int i = 0; i < line; i++)
+		for (set<char>::iterator ite = select[i].begin(); ite != select[i].end(); ite++)
+			for (int j = 0; j < length[i]; j++)
+				table[int(grammar[i][0])][int(*ite)] += grammar[i][j];
+}
+void show_first()
+{
+	cout << "first集合如下:" << endl;
+	for (set<char>::iterator ite1 = N.begin(); ite1 != N.end(); ite1++)
+	{
+		cout << "FIRST( " << *ite1 << " )=  ";
+		for (set<char>::iterator ite2 = first[int(*ite1)].begin(); ite2 != first[int(*ite1)].end(); ite2++)
+		{
+			cout << *ite2 << "  ";
+		}
+		cout << endl;
+		process[int(*ite1)].clear();
+	}
+}
+void show_follow()
+{
+	cout << "fllow集合如下:" << endl;
+	for (set<char>::iterator ite1 = N.begin(); ite1 != N.end(); ite1++)
+	{
+		cout << "FLLOW( " << *ite1 << " )=  ";
+		for (set<char>::iterator ite2 = follow[int(*ite1)].begin(); ite2 != follow[int(*ite1)].end(); ite2++)
+		{
+			cout << *ite2 << "  ";
+		}
+		cout << endl;
+	}
+}
+void show_select()
+{
+	cout << "select集合如下:" << endl;
+	for (int i = 0; i < line; i++)
+	{
+		cout << "SELECT( ";
+		for (int j = 0; j < length[i]; j++)
+		{
+			cout << grammar[i][j];
+		}
+		cout << " )=  ";
+		for (set<char>::iterator ite2 = select[i].begin(); ite2 != select[i].end(); ite2++)
+		{
+			cout << *ite2 << "  ";
+		}
+		cout << endl;
+	}
+}
+void show_stack()
+{
+	stack <char> s1 = sta;
+	stack <char> s2;
+	while (!s1.empty())
+	{
+		s2.push(s1.top());
+		s1.pop();
+	}
+	while (!s2.empty())
+	{
+		cout << s2.top();
+		s2.pop();
+	}
+	cout << "    ";
+}
+void show_queue()
+{
+	queue <char> q;
+	q = que;
+	while (!q.empty())
+	{
+		cout << q.front();
+		q.pop();
+	}
+	cout << "    ";
+}
+void grammatical_analysis(string s)
+{
+	memset(null_flag, 0, sizeof(null_flag));
+	memset(length, 0, sizeof(length));
+	memset(T_flag, 0, sizeof(T_flag));
+	memset(nullselect, 0, sizeof(nullselect));
+	read_grammar_from_file();
+	_null();
+	set_first();
+	show_first();
+	set_follow();
+	show_follow();
+	set_select();
+	show_select();
+	set_table();
+	s.append(1,'#');
+	sta.push('#');
+	sta.push(grammar[0][0]);
+	for (int i = 0; i < s.length(); i++)
+	{
+		que.push(s[i]);
+	}
+	int error_flag = 0;
+	int step = 1;
+	while (que.front() != '#' || sta.top() != '#')
+	{
+		while (if_N(sta.top()))
+		{
+			string str = table[int(sta.top())][int(que.front())];
+			if (str == "")
+			{
+				cout << "wrong1" << endl;
+				error_flag = 1;
+				break;
+			}
+			cout << step << "\t";
+			step++;
+			show_stack();
+			show_queue();
+			cout << str << endl;
+			sta.pop();
+			for (int i = str.size() - 1; i >= 0; i--)
+			{
+				if (str[i] == '>')
+					break;
+				if (str[i] != '^')
+					sta.push(str[i]);
+			}
+		}
+		if (error_flag == 1)
+			break;
+
+		if (sta.top() == que.front())
+		{
+			cout << step << "\t";
+			step++;
+			show_stack();
+			show_queue();
+			cout << "\"" << sta.top() << "\"匹配" << endl;
+			sta.pop();
+			que.pop();
+		}
+		else
+		{
+			cout << "wrong2" << endl;
+			break;
+		}
+	}
+	if (sta.top() == '#'&&que.front() == '#')
+	{
+		cout << step << "\t";
+		step++;
+		show_stack();
+		show_queue();
+		cout << "right" << endl;
+	}
+
+}
