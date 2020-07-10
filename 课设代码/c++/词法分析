@@ -1,0 +1,512 @@
+#include <iostream>
+#include <stdio.h>
+#include <string>
+//#include "grammatical_analysis.cpp"
+#include "Zhongjian.cpp"
+#define THE_NUMBER_OF_Type 25  //关键字
+#define THE_NUMBER_OF_Operator 35  //界符
+
+#define MAXIMUM_NUMBER_OF_Constant 1024 //常量
+#define MAXIMUM_NUMBER_OF_Identifier 1024  //标识符
+
+using namespace std;
+
+/*typedef  struct WORD
+{
+	string type;
+	int num;
+	string word;
+	struct WORD* next;
+};*/
+
+char ch;
+char in[1000];
+int in_p;
+char out[50];
+int out_p;
+int Identifier_n = 0, Constant_n = 0,Char_n=0,String_n=0;
+string Type[THE_NUMBER_OF_Type];
+string Operator[THE_NUMBER_OF_Operator];
+
+string Identifier[MAXIMUM_NUMBER_OF_Identifier];
+string Constant[MAXIMUM_NUMBER_OF_Constant];
+string Char[MAXIMUM_NUMBER_OF_Constant];
+string String[MAXIMUM_NUMBER_OF_Constant];
+
+//string token[1024][2];
+WORD* lexical_parser();
+//void token_anl(FILE*, WORD*);
+void set_Type()
+{
+	Type[0] = "char";
+	Type[1] = "int";
+	Type[2] = "float";
+	Type[3] = "string";
+	Type[4] = "void";
+	Type[5] = "include";
+	Type[6] = "main";
+	Type[7] = "struct";
+	Type[8] = "if";
+	Type[9] = "else";
+	Type[10] = "for";
+	Type[11] = "return";
+	Type[12] = "break";
+	Type[13] = "continue";
+	Type[14] = "case";
+	Type[15] = "while";
+	Type[16] = "printf";
+	Type[17] = "scanf";
+	Type[18] = "stdio.h";
+	Type[19] = "True";
+	Type[20] = "False";
+	Type[21] = "erro";
+	Type[22] = "EOF";
+
+}
+void set_0perator()
+{
+	Operator[0] = "+";
+	Operator[1] = "-";
+	Operator[2] = "*";
+	Operator[3] = "/";
+	Operator[4] = "=";
+	Operator[5] = "{";
+	Operator[6] = "}";
+	Operator[7] = "$";
+	Operator[8] = ":";
+	Operator[9] = "#";
+	Operator[10] = "!";
+	Operator[11] = "%";
+	Operator[12] = "&";
+	Operator[13] = "(";
+	Operator[14] = ")";
+	Operator[15] = ";";
+	Operator[16] = ",";
+	Operator[17] = "?";
+	Operator[18] = "[";
+	Operator[19] = "]";
+	Operator[20] = "|";
+	Operator[21] = "<";
+	Operator[22] = ">";
+	Operator[23] = "!=";
+	Operator[24] = "<=";
+	Operator[25] = ">=";
+	Operator[26] = "==";
+	Operator[27] = "||";
+	Operator[28] = "&&";
+	Operator[29] = "++";
+	Operator[30] = "--";
+
+}
+void set_Identifier()
+{
+	Identifier[Identifier_n] = out;
+}
+void set_Constant()
+{
+	Constant[Constant_n] = out;
+}
+void set_Char() {
+	Char[Char_n] = out;
+}
+void set_String() {
+	String[String_n] = out;
+}
+
+WORD* CreateLists()
+{
+	WORD* head = new WORD;
+	head->next = NULL;
+	return head;
+}
+void OutputLists(WORD* head)
+{
+	WORD* p = head->next;
+	while (p)
+	{
+		cout << p->type << "   "<<p->word<<endl;
+		p = p->next;
+	}
+}
+int main()
+{
+	set_Type();
+	set_0perator();
+	WORD* head = CreateLists();
+	WORD* word = head;
+	WORD* p = new WORD;
+	FILE* fp;
+	if ((fp = freopen("data.txt", "r", stdin)) == NULL)
+	{
+		cout << "fail to open file" << endl;
+		return 0;
+	}
+	else
+		//token_anl(fp, word);
+
+	{
+		while ((scanf("%[^。]s", &in)) != EOF)
+		{
+			in_p = 0;
+			printf("\n%s\n", in);
+			while (p->num != 0)
+			{
+				p = lexical_parser();//词法分析
+				p->next = word->next;
+				word->next = p;
+				word = p;
+				//cout << word->word << "\t" << "<" << word->type << "  " << word->num << ">" << endl;
+				//token[in_p][0] = word->type;
+				//token[in_p][1] = word->word;
+				//cout << token[in_p][0] << "\t" << token[in_p][1] << endl;
+			}
+		}
+	}
+	OutputLists(head);
+	string yffx=to_gra_ana(head->next);
+	cout<<yffx<<endl;
+	//grammatical_analysis(yffx);
+	four_res* for_r=ShengCheng(head->next);
+	out_four_res(for_r);
+	system("pause");
+	return 0;
+}
+/*void token_anl(FILE* fp,WORD* word) {
+	while ((scanf("%[^。]s", &in)) != EOF)
+	{
+		in_p = 0;
+		printf("\n%s\n", in);
+		while (word->num != 0)
+		{
+			word = lexical_parser();//词法分析-word
+			cout << word->word << "\t" << "<" << word->type << "  " << word->num << ">" << endl;
+			//token[in_p][0] = word->type;
+			//token[in_p][1] = word->word;
+			//cout << token[in_p][0] << "\t" << token[in_p][1] << endl;
+		}
+	}
+}*/
+
+int if_letter()
+{
+	if (ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z')
+		return 1;
+	else
+		return 0;
+}
+int if_number()
+{
+	if (ch >= '0' && ch <= '9'||ch==46)
+		return 1;
+	else
+		return 0;
+}
+int if_mark()
+{
+	if (ch == 33 || ch >= 35 && ch <= 38 || ch >= 40 && ch <= 45 || ch == 47 || ch >= 58 && ch <= 64 || ch >= 91 && ch <= 96 || ch >= 123 && ch <= 126)
+		return 1;
+	else
+		return 0;
+}
+
+int if_Type()
+{
+	int i;
+	for (i = 0; i < THE_NUMBER_OF_Type; i++)
+	{
+		string str(out);
+		if (Type[i] == str)
+			return i + 1;
+	}
+	return 0;
+}
+int if_Operator()
+{
+	int i;
+	for (i = 0; i < THE_NUMBER_OF_Operator; i++)
+	{
+		string str(out);
+		if (Operator[i] == str)
+			return i + 1;
+	}
+	return 0;
+}
+int if_existing_Identifier()
+{
+	int i;
+	for (i = 0; i < Identifier_n; i++)
+	{
+		string str(out);
+		if (Identifier[i] == str)
+			return i + 1;
+	}
+	return 0;
+}
+int if_existing_Constant()
+{
+	int i;
+	for (i = 0; i < Constant_n; i++)
+	{
+		string str(out);
+		if (Constant[i] == str)
+			return i + 1;
+	}
+	return 0;
+}
+int if_existing_Char() {
+	int i;
+	for (i = 0; i < Char_n; i++)
+	{
+		string str(out);
+		if (Char[i] == str)
+			return i + 1;
+	}
+	return 0;
+}
+int if_existing_String() {
+	int i;
+	for (i = 0; i < String_n; i++)
+	{
+		string str(out);
+		if (String[i] == str)
+			return i + 1;
+	}
+	return 0;
+}
+char get_ch()
+{
+	ch = in[in_p];
+	in_p++;
+	return ch;
+}
+void skip_sp()//跳过空格、换行、TAB
+{
+	while (ch == ' ' || ch == 10 || ch =='	')
+	{
+		ch = in[in_p];
+		in_p++;
+	}
+}
+void concat()
+{
+	out[out_p] = ch;
+	out_p++;
+	out[out_p] = '\0';
+}
+void retract()
+{
+	in_p--;
+}
+
+WORD* lexical_parser()
+{
+	WORD* word = new WORD;
+	out_p = 0;
+	get_ch();
+	skip_sp();
+
+	if (if_letter())//标识符、关键字
+	{
+		while (if_letter() || if_number())
+		{
+			concat();
+			get_ch();
+		}
+		retract();
+
+		word->num = if_Type();
+		if (word->num)
+		{
+			word->type = "Key";
+			word->word = out;
+		}
+		else
+		{
+			word->num = if_existing_Identifier();
+			if (!word->num)
+			{
+				set_Identifier();
+				Identifier_n++;
+				word->num = Identifier_n;
+			}
+			word->type = "Identifier";
+			word->word = out;
+		}
+	}
+	else if (if_number())//常数
+	{
+		int isf = 0;
+		while (if_number())
+		{
+			if (ch == 46)	isf = 1;
+			concat();
+			get_ch();
+		}
+		retract();
+
+		word->num = if_existing_Constant();
+		if (!word->num)
+		{
+			set_Constant();
+			Constant_n++;
+			word->num = Constant_n;
+		}
+		if (isf == 1)  word->type = "float";
+		if (isf==0)    word->type = "int";
+		word->word = out;
+	}
+
+	else if (ch == 39)//字符
+	{
+		concat();
+		get_ch();
+		concat();
+		get_ch();
+		if (ch == 39)
+		{
+			concat();
+			word->num = if_existing_Char();
+			if (!word->num)
+			{
+				set_Char();
+				Char_n++;
+				word->num = Char_n;
+			}
+			word->type = "Char";
+			word->word = out;
+		}
+		else
+		{
+			retract();
+			word->type = "error";
+			word->num = -1;
+			word->word = 39;
+		}
+	}
+	else if (ch == 34)//字符串
+	{
+		do {
+			concat();
+			get_ch();
+			if (ch == 10) {
+				retract();
+				word->type = "error";
+				word->num = -1;
+				word->word = out;
+				return word;
+			}
+		} while (ch != 34);
+		concat();
+		word->num = if_existing_String();
+		if (!word->num)
+		{
+			set_String();
+			String_n++;
+			word->num = String_n;
+		}
+		word->type = "String";
+		word->word = out;
+	}
+
+	else if (if_mark())
+	{
+	switch (ch) {	//组合符号判断
+	case'!': {
+		concat();
+		get_ch();
+		if (ch == 61) concat();
+		else retract();
+		break;
+		}
+	case'=': {
+		concat();
+		get_ch();
+		if (ch == 61) concat();
+		else retract();
+		break;
+		}
+	case'>': {
+		concat();
+		get_ch();
+		if (ch == 61) concat();
+		else retract();
+		break;
+	    }
+	case'<': {
+		concat();
+		get_ch();
+		if (ch == 61) concat();
+		else retract();
+		break;
+		}
+	case'|': {
+		concat();
+		get_ch();
+		if (ch == 124) concat();
+		else retract();
+		break;
+		}
+	case'&': {
+		concat();
+		get_ch();
+		if (ch == 38) concat();
+		else retract();
+		break;
+		}
+	case'/': {
+		concat();
+		get_ch();
+		if (ch == 47) {
+			concat();
+			while (get_ch() != '\n') {
+				concat();
+			}
+		}
+		else retract();
+		break;
+		}
+	case'+': {
+		concat();
+		get_ch();
+		if (ch == 43) concat();
+		else retract();
+		break;
+		}
+	case'-': {
+		concat();
+		get_ch();
+		if (ch == 45) concat();
+		else retract();
+		break;
+		}
+	default:
+		concat();
+	}
+		word->num = if_Operator();
+		if (word->num)
+		{
+			word->type = "Deli";
+			word->word = out;
+		}
+		else
+		{
+			word->type = "error";
+			word->num = -1;
+			word->word = out;
+		}
+	}
+	else if (ch == '\0')
+	{
+		word->type = "over";
+		word->num = 0;
+		word->word = "\0";
+	}
+	else
+	{
+		concat();
+		word->type = "error";
+		word->num = -1;
+		word->word = out;
+	}
+	return word;
+}
