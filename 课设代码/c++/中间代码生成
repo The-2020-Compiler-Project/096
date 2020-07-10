@@ -1,0 +1,310 @@
+#include <iostream>
+#include "Ftable.cpp"
+using namespace std;
+
+
+
+class staa{    //语义栈，存放计算量
+private:
+    string a[20];
+    int top;
+public:
+    sta(){top=0;}
+    void push(string b){a[top]=b;top++;}
+    string pop(){string m;top--;m=a[top];return m;}
+};
+
+typedef struct res{
+    string four[4];//四元式序列
+    struct res* next;
+}four_res;
+
+
+typedef  struct WORD //token序列
+{
+	string type;
+	int num;
+	string word;
+	struct WORD* next;
+};
+
+int t_num=0; //计算临时变量t总数
+staa sem;
+four_res* bb;
+MainTable * mm=new MainTable;
+
+
+four_res* ShengCheng(WORD* p);  //生成四元式序列函数
+WORD* main_part(four_res* aa,WORD* pp);  //主函数
+WORD* compound_statement(four_res* aa,WORD* pp); //复合语句
+WORD* declaration_statement(four_res* aa,WORD* pp);   //说明语句
+WORD* declaration(four_res* aa,WORD* pp);    //说明(目前是默认是int型)
+WORD* action_statement(four_res* aa,WORD* pp); //陈述语句序列
+WORD* action(four_res* aa,WORD* pp); //陈述（目前为表达式语句，可添加条件判断语句和循环语句）
+WORD* expression(four_res* aa,WORD* pp);  //表达式语句
+WORD* main_expression(four_res* aa,WORD* pp);  //<赋值表达式>→<表达式变量1>|<表达式变量1>{+|-}<表达式变量1>
+WORD* expression1(four_res* aa,WORD* pp);  //<表达式变量1>→<表达式变量2>|<表达式变量2>{*|/}<表达式变量2>
+WORD* expression2(four_res* aa,WORD* pp);  //<表达式变量2>→<标识符>|<常量>|（<赋值表达式>）
+void out_four_res(four_res* a);
+string to_gra_ana(WORD* p);//语法分析接口，输入token，输出字符串
+string trans_is(int a);
+
+/*int main()
+{
+    sta sta1;
+    string a="hollo world";
+    sta1.push(a);
+    cout << sta1.pop() << endl;
+    return 0;
+}*/
+
+
+string to_gra_ana(WORD* p)
+{
+    string a;
+    while(p!=NULL)
+    {
+        if(p->type=="Identifier")
+            a=a+'b';
+        else if(p->type=="int"||p->type=="float")
+            a=a+'n';
+        else if(p->type=="Deli")
+            a=a+p->word;
+        else if(p->word=="int")
+            a=a+'i';
+        else if(p->word=="float")
+            a=a+'f';
+        else if(p->word=="char")
+            a=a+'c';
+        else if(p->word=="main")
+            a=a+'m';
+        p=p->next;
+    }
+    return a;
+}
+
+string trans_is(int a)  //int转string的函数，最大三位数；
+{
+    int b[3]={-1,-1,-1},c,i=0;
+    string d;
+    char e;
+    c=a;
+    for(;c!=0;c=c/10)
+    {
+        b[i]=c%10+48;
+        i++;
+    }
+    i=0;
+    for(c=2;c>=0;c--)
+    {
+        if(b[c]!=-1)
+        {
+            e=b[c];
+            d=d+e;
+        }
+    }
+    return d;
+}
+
+void out_four_res(four_res* a)
+{
+    four_res* b=a;
+    for(;b->next!=NULL;b=b->next)
+    {
+        cout<<"("<<b->four[0]<<"  "<<b->four[1]<<"  "<<b->four[2]<<"  "<<b->four[3]<<")"<<endl;
+    }
+}
+
+four_res* ShengCheng(WORD* pp)  //生成四元式序列函数
+{
+
+    four_res* a=new four_res;
+    bb=a;
+    if(pp->word=="int"&&pp->next->word=="main")
+        pp=main_part(a,pp);
+    else
+        cout<<"error:haven't meet main function"<<endl;
+    bb=NULL;
+    return a;
+}
+
+WORD* main_part(four_res* aa,WORD* pp)   //主函数
+{
+    mm->num=0;mm->addr_num=0;
+    pp=pp->next->next->next->next;
+    if(pp->word!="{")
+        cout<<"error:after <main()>"<<endl;
+    pp=compound_statement(aa,pp);
+    return pp;
+}
+
+WORD* compound_statement(four_res* aa,WORD* pp)   //复合语句
+{
+    pp=pp->next;
+    if(pp->word=="int"||pp->word=="float"||pp->word=="char")
+    {
+        pp=declaration_statement(aa,pp);
+        pp=action_statement(aa,pp);
+    }
+    else
+        pp=action_statement(aa,pp);
+    if(pp->word!="}")
+        cout<<"error:at the last of the main function"<<endl;
+    return pp;
+
+}
+
+WORD* declaration_statement(four_res* aa,WORD* pp)   //说明语句
+{
+
+    while(pp->word=="int"||pp->word=="float"||pp->word=="char")
+    {
+            pp=declaration(aa,pp);
+    }
+    return pp;
+}
+
+WORD* declaration(four_res* aa,WORD* pp)    //说明(目前是默认是int型)
+{
+    string s=pp->word;
+    while(pp->word!=";")
+    {
+        pp=pp->next;
+        sem.push(pp->word);
+
+        mm->name[mm->num]=pp->word;
+        mm->type[mm->num]=new TypeTable;
+        mm->type[mm->num]->TVAL=s[0];
+        mm->cat[mm->num]=pp->type;
+        mm->addr=mm->addr_num;
+        mm->num++;
+        if(s=="int")
+            mm->addr_num=mm->addr_num+4;
+        else if(s=="float")
+            mm->addr_num=mm->addr_num+8;
+
+        pp=pp->next;
+        if(pp->word==",")
+        {
+            sem.pop();
+        }
+        else if(pp->word=="=")
+        {
+            pp=pp->next;
+            pp=main_expression(aa,pp);
+            bb->four[0]="=";bb->four[1]=sem.pop();bb->four[2]="_";bb->four[3]=sem.pop();
+            bb->next=new four_res;
+            bb=bb->next;
+        }
+        else
+            sem.pop();
+    if(pp->word==";")break;
+
+    }
+    pp=pp->next;
+    return pp;
+}
+
+WORD* action_statement(four_res* aa,WORD* pp) //陈述语句序列
+{
+    while(pp->word!="}")
+    {
+        pp=action(aa,pp);
+    }
+    return pp;
+}
+
+WORD* action(four_res* aa,WORD* pp) //陈述（目前为表达式语句，可添加条件判断语句和循环语句）
+{
+    pp=expression(aa,pp);
+    pp=pp->next;  //此处跳过的是“；”
+    return pp;
+}
+
+WORD* expression(four_res* aa,WORD* pp)  //表达式语句
+{
+    sem.push(pp->word);
+    pp=pp->next->next;   //此处默认赋值符号为“=”
+    pp=main_expression(aa,pp);
+    bb->four[0]="=";bb->four[1]=sem.pop();bb->four[2]="_";bb->four[3]=sem.pop();
+    bb->next=new four_res;
+    bb=bb->next;
+    return pp;
+}
+
+WORD* main_expression(four_res* aa,WORD* pp)  //<赋值表达式>→<表达式变量1>|<表达式变量1>{+|-}<表达式变量1>
+{
+    pp=expression1(aa,pp);
+    while(pp->word=="+"||pp->word=="-")
+    {
+        if(pp->word=="+")
+        {
+            pp=pp->next;
+            pp=expression1(aa,pp);
+            t_num++;
+            bb->four[0]="+";bb->four[2]=sem.pop();bb->four[1]=sem.pop();bb->four[3]='t'+trans_is(t_num);
+            sem.push(bb->four[3]);
+            bb->next=new four_res;
+            bb=bb->next;
+        }
+        else if(pp->word=="-")
+        {
+            pp=pp->next;
+            pp=expression1(aa,pp);
+            t_num++;
+            bb->four[0]="-";bb->four[2]=sem.pop();bb->four[1]=sem.pop();bb->four[3]='t'+trans_is(t_num);
+            sem.push(bb->four[3]);
+            bb->next=new four_res;
+            bb=bb->next;
+        }
+    }
+    return pp;
+}
+
+
+WORD* expression1(four_res* aa,WORD* pp)  //<表达式变量1>→<表达式变量2>|<表达式变量2>{*|/}<表达式变量2>
+{
+    pp=expression2(aa,pp);
+    while(pp->word=="*"||pp->word=="/")
+    {
+        if(pp->word=="*")
+        {
+            pp=pp->next;
+            pp=expression2(aa,pp);
+            t_num++;
+            bb->four[0]="*";bb->four[2]=sem.pop();bb->four[1]=sem.pop();bb->four[3]='t'+trans_is(t_num);
+            sem.push(bb->four[3]);
+            bb->next=new four_res;
+            bb=bb->next;
+        }
+        else if(pp->word=="/")
+        {
+            pp=pp->next;
+            pp=expression2(aa,pp);
+            t_num++;
+            bb->four[0]="/";bb->four[2]=sem.pop();bb->four[1]=sem.pop();bb->four[3]='t'+trans_is(t_num);
+            sem.push(bb->four[3]);
+            bb->next=new four_res;
+            bb=bb->next;
+        }
+    }
+    return pp;
+}
+
+
+
+WORD* expression2(four_res* aa,WORD* pp)  //<表达式变量2>→<标识符>|<常量>|（<赋值表达式>）
+{
+    if(pp->type=="Identifier"||pp->type=="int"||pp->type=="float")
+    {
+        sem.push(pp->word);
+        pp=pp->next;
+    }
+    else
+    {
+        pp=pp->next;
+        pp=main_expression(aa,pp);
+        pp=pp->next;
+    }
+    return pp;
+}
